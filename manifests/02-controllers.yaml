@@ -1,0 +1,41 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: controllers
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: prod-kafka
+spec:
+  replicas: 3
+  roles:
+    - controller
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 20Gi
+        # Replace with an available block-storage class
+        class: CHANGE_ME_BLOCK_STORAGE_CLASS
+        deleteClaim: false
+        kraftMetadata: shared
+  template:
+    pod:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: strimzi.io/cluster
+                    operator: In
+                    values: [prod-kafka]
+                  - key: strimzi.io/pool-name
+                    operator: In
+                    values: [controllers]
+              topologyKey: kubernetes.io/hostname
