@@ -21,7 +21,7 @@ spec:
       - id: 0
         type: persistent-claim
         size: 100Gi
-        class: CHANGE_ME_BLOCK_STORAGE_CLASS
+        class: kafka-local
         deleteClaim: false
         kraftMetadata: shared
   template:
