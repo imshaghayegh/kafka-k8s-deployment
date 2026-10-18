@@ -4,6 +4,15 @@ metadata:
   name: prod-kafka
   namespace: kafka
 spec:
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
   kafka:
     version: 4.3.1
     metadataVersion: 4.3-IV0
