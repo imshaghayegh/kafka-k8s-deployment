@@ -22,7 +22,7 @@ spec:
         type: persistent-claim
         size: 20Gi
         # Replace with an available block-storage class
-        class: CHANGE_ME_BLOCK_STORAGE_CLASS
+        class: kafka-local
         deleteClaim: false
         kraftMetadata: shared
   template:
