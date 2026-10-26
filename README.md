@@ -111,6 +111,84 @@ The `Kafka` resource defines the version, listeners, authorization and replicati
 | 9091 | Broker replication / internal communication (Strimzi-managed) | Internal Kafka component traffic |
 | 9404 | Kafka metrics, if configured | Monitoring only |
 
+# Kafka Metrics → Mimir
+
+Kafka metrics are exported by the Strimzi-managed Kafka Exporter, scraped by Fluent Bit, and forwarded to Grafana Mimir using Prometheus Remote Write.
+
+```text
+Kafka (prod-kafka)
+  └── Kafka Exporter :9404/metrics
+        └── Fluent Bit (prometheus_scrape)
+              └── Mimir Gateway /api/v1/push (tenant: fdp)
+```
+
+## Components
+
+| Component | Configuration |
+| --- | --- |
+| Kafka | `prod-kafka` (Strimzi, namespace `kafka`) |
+| Kafka Exporter | Strimzi-managed, port `9404`, topics/groups `.*` |
+| Fluent Bit | Single-replica Deployment, scrape interval `15s` |
+| Mimir | `mimir-gateway.mimir.svc.cluster.local:80`, `/api/v1/push` |
+| Tenant header | `X-Scope-OrgID: fdp` |
+
+## Kafka Exporter
+
+The following block is part of the existing **Kafka** custom resource (`spec.kafkaExporter`), not a standalone Deployment:
+
+```yaml
+spec:
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+```
+
+Exporter service endpoint:
+
+```text
+http://prod-kafka-kafka-exporter.kafka.svc.cluster.local:9404/metrics
+```
+
+## Fluent Bit
+
+The repository includes:
+
+```text
+k8s/
+├── 01-fluent-bit-configmap.yaml
+└── 02-fluent-bit-deployment.yaml
+```
+
+Fluent Bit reads the exporter endpoint with `prometheus_scrape` and sends metric samples to Mimir using `prometheus_remote_write`. The Mimir tenant is selected by the `X-Scope-OrgID` header. The Deployment uses an internal-registry image placeholder to match the cluster's image distribution approach.
+
+```bash
+kubectl apply -f k8s/01-fluent-bit-configmap.yaml
+kubectl apply -f k8s/02-fluent-bit-deployment.yaml
+```
+
+## Verification
+
+```bash
+kubectl get kafka prod-kafka -n kafka
+kubectl get svc -n kafka prod-kafka-kafka-exporter
+kubectl get deploy,pods -n kafka -l app=kafka-metrics-fluent-bit
+kubectl logs -n kafka deploy/kafka-metrics-fluent-bit --tail=100
+```
+
+Sample metric queries in Grafana Explore (Mimir datasource):
+
+```promql
+kafka_brokers
+kafka_topic_partitions
+kafka_consumergroup_lag
+```
+
 ## References
 
 - [Strimzi downloads / compatibility](https://strimzi.io/downloads/)
@@ -118,4 +196,7 @@ The `Kafka` resource defines the version, listeners, authorization and replicati
 - [Official Strimzi Kafka persistent example](https://github.com/strimzi/strimzi-kafka-operator/blob/main/examples/kafka/kafka-persistent.yaml)
 - [Official Strimzi TLS authorization example](https://github.com/strimzi/strimzi-kafka-operator/blob/main/examples/security/tls-auth/kafka.yaml)
 - [Apache Kafka documentation](https://kafka.apache.org/documentation/)
+- [Strimzi Kafka Exporter configuration](https://strimzi.io/docs/operators/in-development/full/configuring.html)
+- [Fluent Bit Prometheus scrape input](https://docs.fluentbit.io/manual/data-pipeline/inputs/prometheus-scrape-metrics)
+- [Fluent Bit Prometheus Remote Write output](https://docs.fluentbit.io/manual/data-pipeline/outputs/prometheus-remote-write)
 
