@@ -38,8 +38,6 @@ The three controllers and three brokers are **six Pods**. They can run on three 
     ├── 02-controllers.yaml
     ├── 03-brokers.yaml
     ├── 04-topic.yaml
-    ├── 05-user.yaml
-    └── 06-client-pod.yaml
 ```
 
 ## 1. Preflight checks
@@ -61,7 +59,6 @@ Confirm all of the following before installation:
 5. At least **360 GiB** of raw PVC capacity is provisionable under the sample manifests: brokers `3 × 100Gi` plus controllers `3 × 20Gi`, excluding monitoring, snapshots and filesystem overhead.
 6. Cluster time synchronization and disk performance are acceptable for expected throughput.
 
-**Important:** Replace `CHANGE_ME_BLOCK_STORAGE_CLASS` in both node pool YAML files with a real block-storage class returned by `kubectl get storageclass`.
 
 For capacity planning, include replication overhead, retention, partition count, expected message size, peak ingress, consumer lag, disk IOPS, growth and recovery headroom. The supplied CPU, memory and PVC values are examples, **not workload-tested production sizing**.
 
@@ -119,7 +116,7 @@ Kafka metrics are exported by the Strimzi-managed Kafka Exporter, scraped by Flu
 Kafka (prod-kafka)
   └── Kafka Exporter :9404/metrics
         └── Fluent Bit (prometheus_scrape)
-              └── Mimir Gateway /api/v1/push (tenant: fdp)
+              └── Mimir Gateway /api/v1/push (tenant: kafka-monitoring)
 ```
 
 ## Components
@@ -130,7 +127,7 @@ Kafka (prod-kafka)
 | Kafka Exporter | Strimzi-managed, port `9404`, topics/groups `.*` |
 | Fluent Bit | Single-replica Deployment, scrape interval `15s` |
 | Mimir | `mimir-gateway.mimir.svc.cluster.local:80`, `/api/v1/push` |
-| Tenant header | `X-Scope-OrgID: fdp` |
+| Tenant header | `X-Scope-OrgID: kafka-monitoring` |
 
 ## Kafka Exporter
 
@@ -152,7 +149,7 @@ spec:
 Exporter service endpoint:
 
 ```text
-http://prod-kafka-kafka-exporter.kafka.svc.cluster.local:9404/metrics
+http://kafka-exporter-metrics.kafka.svc.cluster.local:9404/metrics
 ```
 
 ## Fluent Bit
@@ -160,7 +157,7 @@ http://prod-kafka-kafka-exporter.kafka.svc.cluster.local:9404/metrics
 The repository includes:
 
 ```text
-k8s/
+Fluent-bit/
 ├── 01-fluent-bit-configmap.yaml
 └── 02-fluent-bit-deployment.yaml
 ```
